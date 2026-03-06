@@ -3,7 +3,7 @@
 
 ---
 
-> **How to use this document:** This is our single source of truth. Every section is designed to be actioned directly. Check off tasks as we complete them. Push this file to GitHub — it renders Mermaid diagrams natively, making it fully collaborative and visually complete for the whole team.
+> **How to use this document:** This is our single source of truth. Every section is designed to be actioned directly. Check off tasks as we complete them. 
 
 ---
 
