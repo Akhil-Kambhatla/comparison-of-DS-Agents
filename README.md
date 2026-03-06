@@ -3,7 +3,7 @@
 
 ---
 
-> **How to use this document:** This is the single source of truth for your project planning. Every section below was designed to be actioned directly. Check off tasks as you complete them. Share with teammates via GitHub — this file renders Mermaid diagrams natively on GitHub, making it fully collaborative and visually complete.
+> **How to use this document:** This is our single source of truth. Every section is designed to be actioned directly. Check off tasks as we complete them. Push this file to GitHub — it renders Mermaid diagrams natively, making it fully collaborative and visually complete for the whole team.
 
 ---
 
@@ -19,187 +19,329 @@
 **The Core Question:**
 > *Which data science agents produce the best models, most readable code, and most useful insights — and under what conditions does each one fail?*
 
-**Why this project was selected over alternatives:**
-This project was chosen because it combines all three of the student's technical comfort areas: local LLMs via Ollama, ML modeling with tabular data, and data analysis with pandas. It has the highest technical depth ceiling of all options considered. The addition of an interactive Streamlit dashboard further elevates it into the "Build X using Y" category on top of the core research project.
+**Why we chose this project over alternatives:**
+We selected this because it combines all three of our technical comfort areas: local LLMs via Ollama, ML modeling with tabular data, and data analysis with pandas. It has the highest technical depth ceiling of all options we considered. The addition of an interactive Streamlit dashboard further elevates it into the "Build X using Y" category on top of the core research project.
 
-**Backup project:** Kafka Streaming Pipeline (recommended for its breadth across data engineering and its differentiation from the primary project's ML focus).
+**Backup project:** Kafka Streaming Pipeline — recommended for its breadth across data engineering and its differentiation from our primary project's ML focus.
 
 ---
 
-## 2. Agent Selection Strategy
+## 2. GitHub Setup and Workflow
 
-You must benchmark **at least 3 agents** from different categories. Based on the free-only constraint, Docker compatibility, and the goal of deep technical learning, the recommended selection is:
+We need to get GitHub set up before anything else — it unblocks everything downstream.
 
-| Agent | Category | Why Pick It | Free? | Local? |
+### Step-by-step Setup
+
+```
+Step 1: Create a GitHub issue
+         Title: Spring2026_Comparison_of_Data_Science_Agents
+         Body: Include project description, agent list, dataset list, evaluation rubric
+
+Step 2: Note the issue number — we use it in the branch name
+         Example: issue #712
+
+Step 3: Create our working branch from main
+         git checkout -b TutorTask712_Spring2026_Comparison_of_Data_Science_Agents
+
+Step 4: Create our project folder
+         DATA605/Spring2026/projects/TutorTask712_Spring2026_Comparison_of_Data_Science_Agents/
+
+Step 5: Commit frequently with meaningful messages. Examples:
+         "Add Dockerfile and requirements.txt for all three agents"
+         "Add data loading utilities for Heart Disease and NYC Taxi"
+         "Add AutoGluon wrapper and first benchmark run on Heart Disease"
+         "Add PyCaret wrapper and compare_models benchmark"
+         "Add AutoGen wrapper with Ollama integration"
+         "Add adversarial injection functions and run failure mode experiments"
+         "Add LLM-as-Judge evaluation pipeline with human fallback"
+         "Add Streamlit dashboard with 5 pages"
+         "Complete API.ipynb and example.ipynb with full inline documentation"
+         "Add README.md and final polish"
+
+Step 6: Submit first PR checkpoint when notebooks are running
+         Add TAs and @gpsaggese as reviewers
+         Request review on: file structure, Docker setup, notebook quality
+
+Step 7: Incorporate all feedback from reviewers
+
+Step 8: Submit final PR with the same reviewers
+
+Step 9: Upload video to class Google Drive folder
+         Share the link in the PR description
+```
+
+---
+
+## 3. What We Need to Understand Before We Write a Single Line of Code
+
+This section is for onboarding anyone on the team. Before touching code, every team member should be able to answer every question in this section. Estimated reading time: 3–4 hours.
+
+### 3.1 What is this class project format?
+
+The class uses a "Learn X in 60 minutes" format. That means our project is not just a working system — it is a **tutorial** that teaches someone else how to use these tools. Every notebook cell needs a markdown explanation above it. Every result needs an interpretation below it. We are writing for a reader who has never heard of AutoGluon, PyCaret, or AutoGen.
+
+The required deliverables are:
+- `ds_agents.API.ipynb` — walks through the raw API of each agent (what functions exist, how they work, what they return)
+- `ds_agents.example.ipynb` — runs the full benchmark pipeline end-to-end on real data
+- `ds_agents_utils.py` — all reusable logic lives here; notebooks only import from this file
+- `app.py` — our Streamlit dashboard (our bonus depth dimension)
+- `README.md` — documentation including setup instructions, API descriptions, diagrams, references
+- Video — 10–20 minutes, 7 required steps (see Phase 3 section)
+
+### 3.2 What is a Data Science Agent?
+
+A Data Science Agent is a software system that can autonomously perform data science tasks — like training models, generating feature importance, or writing and running code — when given a dataset and a goal. The key distinction is that you give it high-level instructions (e.g., "train a classifier on this data and tell me which features matter") rather than writing every line of ML code yourself.
+
+There are several architectural categories we need to understand:
+
+**AutoML agents** (AutoGluon, PyCaret) work by automatically searching through many ML algorithms and hyperparameter configurations, then returning the best-performing model. They are deterministic, fast, and well-understood. Think of them as very smart hyperparameter search tools.
+
+**Multi-agent systems** (AutoGen) work differently. Two or more AI agents — each with a different role — pass messages back and forth to solve a problem collaboratively. An `AssistantAgent` might write Python code, while a `UserProxyAgent` executes it and reports the result back. This process repeats until the task is solved. The language model powering these agents is what makes them generative — they produce novel code and explanations, not just search through a predefined space.
+
+**Natural language interfaces** (PandasAI) let you query your DataFrame in plain English ("What is the average fare by pickup zone?") and get back results. These are less about model training and more about interactive data exploration.
+
+Understanding these architectural differences is essential because it explains why we expect different results from each agent type — and it is the core intellectual contribution of our comparison.
+
+### 3.3 What is Ollama and why do we need it?
+
+Ollama is a tool that lets us run large language models locally on our machine. Instead of paying for OpenAI API calls, we download and run `llama3` or `mistral` ourselves. Ollama exposes these models as a local HTTP API on port 11434, compatible with the OpenAI API format.
+
+We need Ollama specifically to power AutoGen. AutoGen needs a language model to generate code and explanations. Without Ollama (or some other LLM backend), AutoGen cannot function. With Ollama, the entire project is free.
+
+The networking challenge: when AutoGen runs inside our Docker container, it needs to reach Ollama which is running on our host machine. The address for this is `host.docker.internal:11434`. Testing this on Day 1 is the most important risk mitigation step in the whole project.
+
+### 3.4 What is Docker and why does the class require it?
+
+Docker creates a reproducible environment. When we run `docker_build.sh`, it builds a container image with exactly the right Python version, exactly the right package versions, and exactly the right file layout — on any machine. When the graders or our teammates run our project, they get the same environment we tested in.
+
+The class requires Docker because "it works on my machine" is not an acceptable answer in a team or professional context. Our project must run inside Docker, and both notebooks must execute completely after a kernel restart inside the container.
+
+We need to understand four shell scripts:
+- `docker_build.sh` — builds the Docker image (run once, or after changing Dockerfile)
+- `docker_bash.sh` — opens a bash shell inside the container for debugging
+- `docker_jupyter.sh` — starts Jupyter server inside the container, accessible at `localhost:8888`
+- `docker_clean.sh` — removes the container and image to free disk space
+
+### 3.5 What is SHAP and why does it matter for our project?
+
+SHAP (SHapley Additive exPlanations) is a method for explaining the output of any ML model. For each prediction, SHAP tells us which features pushed the prediction up, which pushed it down, and by how much. This is our primary explainability tool.
+
+AutoGluon provides SHAP-based importance via `predictor.feature_importance(data)`. PyCaret provides it via `interpret_model(best_model)`. AutoGen generates natural language explanations instead — which is what we evaluate using our LLM-as-Judge pipeline.
+
+SHAP is important for our project because it is one of our five evaluation dimensions (weighted at 20%). It is also genuinely useful: a model with worse accuracy but better explainability might be preferred in a medical context. Our sensitivity analysis explores exactly this tradeoff.
+
+### 3.6 What is SQLite and how do we use it?
+
+SQLite is a file-based relational database — one `.sqlite` file on disk, no server required. We use it to store all our benchmark results: metrics, SHAP values, runtime, experiment tags, and LLM judge scores.
+
+Why use a database instead of just a CSV? Because we run 12+ experiments and need to slice them in many ways (by agent, by dataset, by condition, by metric). Pandas can query SQLite directly via `pd.read_sql("SELECT ... FROM results WHERE ...", conn)`, and Streamlit can read from it the same way. It is also more robust than a CSV if we need to rerun individual experiments without clobbering previous results.
+
+### 3.7 What is Streamlit and what are we building with it?
+
+Streamlit is a Python library that turns a Python script into a web app. No HTML, no JavaScript, no React required — just Python with Streamlit function calls (`st.write()`, `st.bar_chart()`, `st.slider()`). The whole dashboard is a single file `app.py`.
+
+Our dashboard has 5 pages: Dataset Explorer, Metric Comparison (bar + radar charts), SHAP Viewer, Adversarial Results, and a Composite Scorecard with live weight sliders. The key feature is that when someone drags the "explainability" weight slider up, the agent rankings update in real time. This makes the sensitivity analysis interactive and intuitive.
+
+### 3.8 What background reading do we need to do?
+
+Before writing any code, every team member should read:
+
+**Conceptual reads (understand what each tool is):**
+- AutoGluon tabular quickstart: `https://auto.gluon.ai/stable/tutorials/tabular/tabular-quick-start.html` — focus on `TabularPredictor.fit()`, `predict()`, `evaluate()`, `feature_importance()`
+- PyCaret quickstart: `https://pycaret.gitbook.io/docs/get-started/quickstart` — focus on `setup()`, `compare_models()`, `predict_model()`, `interpret_model()`
+- AutoGen multi-agent tutorial: `https://github.com/microsoft/autogen` — focus on `AssistantAgent` + `UserProxyAgent` pattern and the `initiate_chat()` method
+- Ollama quickstart: `https://github.com/ollama/ollama` — understand how to run a local LLM and expose it as an API endpoint
+
+**Technical reads (understand how to actually implement):**
+- How to install AutoGluon inside Docker with CPU-only PyTorch — look for the official Docker install guide, it has specific steps for avoiding CUDA conflicts
+- How to configure AutoGen to use Ollama instead of OpenAI — search for `OllamaWrapper` or `config_list` with `base_url` pointing to `http://host.docker.internal:11434/v1`
+- How to extract SHAP values from AutoGluon: `predictor.feature_importance(data)` — this returns SHAP-based importance scores, not permutation importance
+- How to extract SHAP values from PyCaret: `interpret_model(best_model)` — calls the SHAP library internally
+- How to connect Streamlit to SQLite: use `sqlite3.connect()` or `sqlalchemy` + `pd.read_sql()` inside a Streamlit app
+
+**Grading-relevant reads:**
+- Look at the `tutorials/autogen` example in the `umd_classes` repository — this is the closest reference for expected notebook structure and documentation depth
+- Watch 2–3 previous student project videos from the class Google Drive folder to calibrate the expected depth, presentation style, and length
+
+---
+
+## 4. Agent Selection Strategy
+
+We are benchmarking 3 agents from different categories. All are free, all run locally, all work inside Docker.
+
+| Agent | Category | Why We Picked It | Free? | Local? |
 |---|---|---|---|---|
 | **AutoGluon** | AutoML | Best-in-class tabular ML, pip installable, no API key needed, supports both classification and regression | ✅ | ✅ |
 | **PyCaret** | Experiment / AutoML | Low-code, fast, produces outstanding comparison tables across many ML algorithms in a single call | ✅ | ✅ |
-| **AutoGen + Ollama** | Multi-agent framework | Multiple AI agents collaborate with each other using a locally-hosted LLM; the "going deep" technical angle for this project | ✅ | ✅ |
-| **PandasAI** *(optional 4th)* | Natural language data analysis | Natural language interface for querying DataFrames; can run fully locally with an Ollama backend | ✅ | ✅ |
+| **AutoGen + Ollama** | Multi-agent framework | Multiple AI agents collaborate with each other using a locally-hosted LLM — our "going deep" technical angle | ✅ | ✅ |
+| **PandasAI** *(optional 4th)* | Natural language data analysis | Natural language interface for querying DataFrames; runs fully locally with an Ollama backend | ✅ | ✅ |
 
-### Why NOT the others?
+### Why We Ruled Out Others
 
-The following agents were considered and explicitly rejected for the reasons listed:
+We explicitly considered and rejected these options:
 
-- **Devin** → Paid and commercial; not accessible without a subscription
-- **ChatGPT Advanced Data Analysis** → Requires an OpenAI paid account; not reproducible by classmates
-- **Open Interpreter** → Unstable Docker support; high risk of environment failures during demo
-- **Jupyter AI** → Requires an API key for any meaningful use; adds cost or workaround complexity
-- **CrewAI** → Architecturally overlaps with AutoGen; redundant to include both in the same benchmark
-- **LangGraph** → Excellent tool but better suited as the foundation of its own standalone project
+- **Devin** — paid and commercial; not accessible without a subscription
+- **ChatGPT Advanced Data Analysis** — requires an OpenAI paid account; not reproducible by classmates or graders
+- **Open Interpreter** — unstable Docker support; high risk of environment failures during demo
+- **Jupyter AI** — requires an API key for any meaningful use; adds cost or workaround complexity
+- **CrewAI** — architecturally overlaps with AutoGen; redundant to include both
+- **LangGraph** — excellent tool but better suited as the foundation of its own standalone project
 
-### The AutoGen + Ollama Angle (Why This Makes the Project Special)
+### Why AutoGen + Ollama Is the Centerpiece
 
-Running AutoGen with a local Ollama model (e.g., `llama3`, `mistral`) keeps the entire project free and adds genuine technical complexity that most student projects lack. You are orchestrating multiple AI agents — an `AssistantAgent` and a `UserProxyAgent` — that pass messages to each other using a locally-hosted language model with zero external API calls. This is a meaningful, publishable-quality system design that demonstrates real understanding of multi-agent frameworks.
+Running AutoGen with a local Ollama model keeps the entire project free and adds genuine technical complexity that most student projects lack. We are orchestrating multiple AI agents — an `AssistantAgent` and a `UserProxyAgent` — that pass messages to each other using a locally-hosted language model with zero external API calls. This is publishable-quality system design.
 
-The key configuration: AutoGen's `OllamaWrapper` (or `config_list` with `base_url` pointing to `http://host.docker.internal:11434`) routes all LLM calls to the Ollama process running on your host machine, accessible from inside the Docker container via the bridge network.
+The key configuration we use:
+
+```python
+config_list = [{
+    "model": "llama3",
+    "base_url": "http://host.docker.internal:11434/v1",
+    "api_key": "ollama"
+}]
+```
 
 ---
 
-## 3. Dataset Selection
+## 5. Dataset Selection
 
-Use **2 datasets** (quality over quantity — two well-chosen datasets within 40 hours is better than four shallow ones):
+We are using 2 datasets. Quality over quantity — two well-chosen datasets within 40 hours beats four shallow ones.
 
 ### Dataset 1: Heart Disease (UCI / Kaggle)
 
 - **Task type:** Binary classification (predict presence or absence of heart disease)
 - **Size:** ~303 rows, 14 features (age, sex, cholesterol, chest pain type, etc.)
-- **Why choose it:** Small and fast to run — every agent can finish in seconds. The domain is well-understood. It is perfect for comparing model accuracy, feature importance, and SHAP explanations across agents without waiting for long training runs.
-- **Data quality profile:** Clean — minimal missing values by default, making it ideal for your "clean data" baseline experiments.
-- **Adversarial use:** You will also inject 20% missing values and a 9:1 class imbalance into this dataset to create your "adversarial" condition.
-- **Access:** Free Kaggle download; no auth token required. Also available directly from the UCI ML Repository.
+- **Why we chose it:** Small and fast — every agent finishes in seconds. The domain is well-understood. Perfect for comparing accuracy, feature importance, and SHAP explanations across agents without long training waits.
+- **Data quality profile:** Clean — minimal missing values by default, making it our "clean data" baseline.
+- **Adversarial use:** We inject 20% missing values and a 9:1 class imbalance into this dataset to create our "adversarial" test condition.
+- **Access:** Free Kaggle download; no auth token required. Also available from the UCI ML Repository.
 - **Target column:** `target` (1 = heart disease, 0 = no heart disease)
 
 ### Dataset 2: NYC Yellow Taxi Trip Records
 
 - **Task type:** Regression (predict fare amount or tip amount per trip)
-- **Size:** Sample 50,000 rows from one month's publicly available Parquet file (January 2023 recommended)
-- **Why choose it:** A large, real-world dataset with messy data — datetime features, outliers, missing GPS coordinates, vendor-specific encoding quirks. It tests how each agent handles scale, feature engineering requirements, and imperfect data. This is where AutoGluon and PyCaret shine and where AutoGen will struggle.
+- **Size:** 50,000 rows sampled from January 2023 Parquet file
+- **Why we chose it:** Large, real-world, messy — datetime features, outliers, missing GPS coordinates, vendor-specific encoding quirks. Tests how agents handle scale, feature engineering, and imperfect data. This is where AutoGluon and PyCaret shine and where AutoGen will likely struggle.
 - **Data quality profile:** Messy — missing values, outliers in fare and distance columns, datetime parsing required.
 - **Access:** Fully public, no authentication. Direct Parquet download from the NYC TLC open data portal.
-- **Target column:** `fare_amount` (regression) or `tip_amount` (regression, more interesting distribution)
+- **Target column:** `fare_amount` (regression) or `tip_amount` (regression — more interesting distribution)
 
-### Why These Two Datasets Specifically
+### Why These Two Specifically
 
-Heart Disease gives you a clean, fast, small classification baseline. Taxi gives you a large, messy, slow regression stress test. Together they cover two task types (classification and regression), two data quality profiles (clean vs. messy), and two dataset sizes (small vs. large). This combination makes your comparison significantly richer and more honest than using two similar clean classification datasets. A reviewer — including your professor — will notice and respect this design decision.
+Heart Disease gives us a clean, fast, small classification baseline. Taxi gives us a large, messy, slow regression stress test. Together they cover two task types (classification and regression), two data quality profiles (clean vs. messy), and two dataset sizes (small vs. large). Our professor will notice this design decision — it shows we thought carefully about what we are measuring.
 
 ---
 
-## 4. Evaluation Framework (Your Scoring Rubric)
+## 6. Evaluation Framework
 
-Design the rubric upfront so that every agent is judged identically. Subjectivity in scoring after the fact is a common weakness in student benchmarking projects — defining weights before you run the experiments eliminates that bias entirely.
+We define the rubric upfront so every agent is judged identically. Defining weights before running experiments eliminates the bias of adjusting weights after seeing results.
 
-### Proposed Weighted Rubric
+### Weighted Scoring Rubric
 
-| Dimension | Weight | What You Measure |
+| Dimension | Weight | What We Measure |
 |---|---|---|
-| **Model Performance** | 35% | Accuracy + F1-score (classification); RMSE + MAE (regression) |
-| **Runtime** | 15% | Wall-clock training time in seconds (measured by your wrapper) |
-| **Code Quality** | 20% | Readability, modularity, can the notebook re-run independently after kernel restart |
-| **Explainability** | 20% | SHAP values present, feature importance ranked, narrative quality of AutoGen's output |
-| **Error Handling** | 10% | How each agent responds to missing values and class imbalance: crash, silent failure, or warning |
+| **Model Performance** | 35% | Accuracy + F1 (classification); RMSE + MAE (regression) |
+| **Runtime** | 15% | Wall-clock training time in seconds, measured by our wrapper |
+| **Code Quality** | 20% | Readability, modularity, re-runs after kernel restart |
+| **Explainability** | 20% | SHAP values present, feature importance ranked, narrative quality for AutoGen |
+| **Error Handling** | 10% | How each agent handles missing values and class imbalance: crash, silent failure, or warning |
 
-### How to Compute the Composite Score
+### How We Compute Composite Scores
 
-For each agent on each dataset, you will:
-
-1. Normalize each raw metric to a 0–10 scale using min-max normalization across agents (so the best agent in each dimension gets a 10 and the worst gets a 0)
+For each agent on each dataset we:
+1. Normalize each raw metric to a 0–10 scale using min-max normalization across agents (best agent gets 10, worst gets 0)
 2. Multiply each normalized score by its weight
 3. Sum to get the composite score out of 10
 4. Store in `results.sqlite` and display in the Streamlit scorecard
 
-### The Sensitivity Analysis
+### Sensitivity Analysis Weight Configurations
 
-After computing the baseline composite scores, re-run the scoring with three alternative weight configurations to show how rankings change:
+We re-run scoring under three alternative configurations to show how rankings change:
 
-- **"Speed matters most":** Runtime 40%, Performance 30%, Code Quality 15%, Explainability 10%, Error Handling 5%
-- **"Explainability matters most":** Explainability 40%, Performance 30%, Code Quality 20%, Runtime 5%, Error Handling 5%
-- **"Balanced":** All five dimensions equally weighted at 20% each
+- **Speed Matters Most:** Runtime 40%, Performance 30%, Code Quality 15%, Explainability 10%, Error Handling 5%
+- **Explainability Matters Most:** Explainability 40%, Performance 30%, Code Quality 20%, Runtime 5%, Error Handling 5%
+- **Balanced:** All five dimensions equally weighted at 20%
 
-If the agent rankings change when you shift weights, you have a genuinely interesting result to discuss. If they stay the same, that's also an important finding — it means the winner is robust.
+If agent rankings change when we shift weights, we have an interesting result. If they stay the same, that is also meaningful — it means the winner is robust across evaluation philosophies.
 
 ---
 
-## 5. Full Project Architecture
+## 7. Full Project Architecture
 
 ```mermaid
 flowchart TD
-    A[Raw Datasets\nHeart Disease + NYC Taxi] --> B[Data Prep Layer\npandas cleaning\nmissing value injection\nclass imbalance injection]
+    A[Raw Datasets] --> B[Data Prep Layer]
     B --> C{Run 3 Agents}
-    C --> D[AutoGluon\nAutoML]
-    C --> E[PyCaret\nExperiment]
-    C --> F[AutoGen + Ollama\nMulti-agent]
-    D --> G[(results.sqlite\nResults Collector)]
+    C --> D[AutoGluon]
+    C --> E[PyCaret]
+    C --> F[AutoGen + Ollama]
+    D --> G[(results.sqlite)]
     E --> G
     F --> G
-    G --> H[Analysis Layer\ncorrelation analysis\nSHAP values\nscoring rubric\ncomposite scorecard]
-    H --> I[Streamlit Dashboard\napp.py - interactive explorer]
-    H --> J[Jupyter Notebooks\nAPI.ipynb + example.ipynb]
-    I --> K[Docker Container\nfinal deliverable]
+    G --> H[Analysis Layer]
+    H --> I[Streamlit Dashboard]
+    H --> J[Jupyter Notebooks]
+    I --> K[Docker Container]
     J --> K
 ```
 
 ---
 
-## 6. Repository Structure
+## 8. Repository Structure
 
-Following the class README's required folder structure exactly:
+We follow the class README's required folder structure exactly:
 
 ```
 DATA605/
 └── Spring2026/
     └── projects/
         └── TutorTask{N}_Spring2026_Comparison_of_Data_Science_Agents/
-            ├── ds_agents_utils.py          # ALL reusable logic goes here — no complex logic inline in notebooks
+            ├── ds_agents_utils.py          # ALL reusable logic — no complex code inline in notebooks
             ├── ds_agents.API.ipynb         # Tool API exploration — understand each agent's interface
-            ├── ds_agents.example.ipynb     # End-to-end application — full benchmark pipeline
-            ├── app.py                      # Streamlit dashboard (bonus depth dimension)
+            ├── ds_agents.example.ipynb     # End-to-end benchmark pipeline
+            ├── app.py                      # Streamlit dashboard
             ├── data/
-            │   ├── heart_disease.csv       # ~303 rows, 14 features, binary classification
-            │   └── taxi_sample.parquet     # 50k rows sampled from NYC TLC January 2023
+            │   ├── heart_disease.csv
+            │   └── taxi_sample.parquet
             ├── results/
-            │   └── results.sqlite          # All benchmark results, metrics, SHAP data stored here
-            ├── Dockerfile                  # Single container: all agents + Jupyter + Streamlit
-            ├── docker_build.sh             # docker build -t ds_agents .
-            ├── docker_bash.sh              # docker run -it ds_agents bash
-            ├── docker_jupyter.sh           # docker run -p 8888:8888 ds_agents jupyter notebook
-            ├── docker_clean.sh             # Remove container and image
-            ├── requirements.txt            # All Python dependencies with pinned versions
-            └── README.md                   # Required documentation — see Section 13
+            │   ├── results.sqlite
+            │   └── flagged_reviews.csv
+            ├── Dockerfile
+            ├── docker_build.sh
+            ├── docker_bash.sh
+            ├── docker_jupyter.sh
+            ├── docker_clean.sh
+            ├── requirements.txt
+            └── README.md
 ```
 
-### Key Rule: Logic Belongs in `ds_agents_utils.py`
+### The Rule About `ds_agents_utils.py`
 
-Every reusable function must live in `ds_agents_utils.py`. The notebooks import from it. This rule exists because:
-1. It makes code testable independently of notebook execution state
-2. It ensures the logic is documented and readable
-3. It is an explicit grading criterion — notebooks with complex logic inline instead of in utils will lose points
+Every reusable function must live in `ds_agents_utils.py`. Notebooks only import from it. This is an explicit grading criterion — notebooks with complex logic inline instead of in utils will lose points. It also makes our code testable and readable independently of notebook state.
 
 ---
 
-## 7. Phase-by-Phase Execution Plan
+## 9. Phase-by-Phase Execution Plan
 
 ### PHASE 1 — Planning (Current Phase)
-*Goal: Know exactly what you're building before writing a single line of code. Decisions made here save 10x the time later.*
+*Know exactly what we are building before writing a single line of code. Decisions made here save 10x the time later.*
 
 - [x] Read and understand all README requirements for the class project
 - [x] Select primary project: Comparison of Data Science Agents
 - [x] Select backup project: Kafka Streaming Pipeline
-- [ ] Finalize agent selection: AutoGluon + PyCaret + AutoGen (confirmed above)
-- [ ] Finalize dataset selection: Heart Disease + NYC Taxi (confirmed above)
-- [ ] Finalize evaluation rubric weights (confirmed above — 35/15/20/20/10)
-- [ ] Create GitHub issue with title `Spring2026_Comparison_of_Data_Science_Agents`
-- [ ] Note issue number (e.g., #712)
-- [ ] Fork and clone `umd_classes` repository: `git clone git@github.com:gpsaggese/umd_classes.git`
-- [ ] Create project branch: `TutorTask{N}_Spring2026_Comparison_of_Data_Science_Agents`
-- [ ] Copy project template files into your project directory
-- [ ] Set up local environment: install Docker Desktop, install Ollama, pull `llama3` or `mistral` model
-- [ ] Complete all background reading listed in Section 9
+- [ ] Finalize agent selection (AutoGluon + PyCaret + AutoGen — confirmed above)
+- [ ] Finalize dataset selection (Heart Disease + NYC Taxi — confirmed above)
+- [ ] Finalize evaluation rubric weights (35 / 15 / 20 / 20 / 10 — confirmed above)
+- [ ] Create GitHub issue
+- [ ] Note issue number and create branch with correct naming convention
+- [ ] Fork and clone `umd_classes` repo
+- [ ] Copy project template files into our project directory
+- [ ] Set up local environment: install Docker Desktop, install Ollama, pull `llama3` or `mistral`
+- [ ] Complete all background reading from Section 3
 
 ---
 
 ### PHASE 2 — Project Execution (~30 hours)
-*Goal: Build, run, and analyze everything. Follow the day-by-day plan to stay on schedule.*
 
 ---
 
@@ -209,7 +351,7 @@ Every reusable function must live in `ds_agents_utils.py`. The notebooks import 
 
 **Day 1–2: Docker + Environment Setup (~6 hours)**
 
-This is the most technically risky part of the project. Do it first, before any data or analysis work, so you find problems early.
+This is the most technically risky part of the project. We do it first, before any data or analysis work, so we find problems early.
 
 - [ ] Write `Dockerfile`:
   - Base image: `python:3.11-slim` (avoids CUDA complications)
@@ -218,13 +360,13 @@ This is the most technically risky part of the project. Do it first, before any 
   - Expose ports 8888 (Jupyter) and 8501 (Streamlit)
   - Set working directory to `/workspace`
   - Copy project files into image
-- [ ] Write `requirements.txt` with all versions pinned (see Section 11 for exact versions)
-- [ ] Write and verify all four Docker shell scripts: `docker_build.sh`, `docker_bash.sh`, `docker_jupyter.sh`, `docker_clean.sh`
-- [ ] Install Ollama locally on your host machine: `https://ollama.com`
-- [ ] Pull your chosen model: `ollama pull llama3` (3.8GB) or `ollama pull mistral` (4.1GB)
-- [ ] Verify Ollama is serving on port 11434: `curl http://localhost:11434/api/tags`
-- [ ] **CRITICAL TEST — Day 1:** Write a minimal Python script inside Docker that calls Ollama using `host.docker.internal:11434` as the base URL. If this fails, the AutoGen integration fails. Solve networking on Day 1, not Day 6.
-- [ ] Configure AutoGen's `config_list` to point to Ollama endpoint:
+- [ ] Write `requirements.txt` with all versions pinned (see Section 12 for exact versions)
+- [ ] Write and verify all four Docker shell scripts
+- [ ] Install Ollama locally on the host machine: `https://ollama.com`
+- [ ] Pull our model: `ollama pull llama3` (3.8GB) or `ollama pull mistral` (4.1GB)
+- [ ] Verify Ollama is serving: `curl http://localhost:11434/api/tags`
+- [ ] **CRITICAL TEST — Day 1:** Write a minimal Python script inside Docker that calls Ollama via `host.docker.internal:11434`. If this fails, AutoGen integration fails. Solve networking on Day 1, not Day 6.
+- [ ] Configure AutoGen `config_list`:
   ```python
   config_list = [{
       "model": "llama3",
@@ -233,112 +375,83 @@ This is the most technically risky part of the project. Do it first, before any 
   }]
   ```
 
-> ⚠️ **Risk note:** AutoGluon has specific PyTorch dependencies that can conflict with other packages. Use CPU-only PyTorch (`torch --index-url https://download.pytorch.org/whl/cpu`) to avoid CUDA conflicts inside Docker. PyCaret can also conflict with AutoGluon's dependency tree — install them in a specific order (AutoGluon first, then PyCaret) and pin versions exactly.
+> ⚠️ **Risk note:** AutoGluon has specific PyTorch dependencies that can conflict with other packages. Use CPU-only PyTorch (`pip install torch --index-url https://download.pytorch.org/whl/cpu`) to avoid CUDA conflicts inside Docker. Install AutoGluon first, then PyCaret, to manage the dependency tree.
 
 ---
 
 **Day 3: Data Pipeline (~4 hours)**
 
-- [ ] Download Heart Disease dataset from Kaggle or UCI
-  - Save to `data/heart_disease.csv`
+- [ ] Download Heart Disease from Kaggle or UCI — save to `data/heart_disease.csv`
   - Verify: 303 rows, 14 columns, no extra index columns
 - [ ] Download NYC Taxi Parquet for January 2023:
   - URL: `https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet`
-  - Sample 50,000 rows and save to `data/taxi_sample.parquet`
-- [ ] Write the following functions in `ds_agents_utils.py`:
+  - Sample 50,000 rows — save to `data/taxi_sample.parquet`
+- [ ] Write these functions in `ds_agents_utils.py`:
 
 ```python
 def load_heart_disease(data_dir: str = "data/") -> pd.DataFrame:
-    """
-    Load Heart Disease dataset. Returns clean DataFrame with correct dtypes.
-    Target column: 'target' (1 = disease, 0 = no disease).
-    """
+    """Load Heart Disease dataset. Returns clean DataFrame with correct dtypes.
+    Target column: 'target' (1 = disease, 0 = no disease)."""
 
 def load_taxi_sample(data_dir: str = "data/", n_rows: int = 50000) -> pd.DataFrame:
-    """
-    Load NYC Yellow Taxi sample. Drops rows with missing fare_amount.
-    Parses pickup/dropoff datetime. Returns DataFrame ready for regression.
-    Target column: 'fare_amount'.
-    """
+    """Load NYC Yellow Taxi sample. Drops rows with missing fare_amount.
+    Parses pickup/dropoff datetime. Target column: 'fare_amount'."""
 
 def inject_missing_values(df: pd.DataFrame, pct: float = 0.20,
                            random_state: int = 42) -> pd.DataFrame:
-    """
-    Randomly set pct fraction of non-target values to NaN.
-    Used for adversarial failure mode experiments.
-    """
+    """Randomly set pct fraction of non-target values to NaN.
+    Used for adversarial failure mode experiments."""
 
 def inject_class_imbalance(df: pd.DataFrame, target_col: str,
                             majority_class: int = 0,
                             ratio: float = 9.0,
                             random_state: int = 42) -> pd.DataFrame:
-    """
-    Undersample minority class to create ratio:1 imbalance.
-    E.g., ratio=9.0 creates a 9:1 majority:minority split.
-    Used for adversarial failure mode experiments.
-    """
+    """Undersample minority class to create ratio:1 imbalance.
+    Used for adversarial failure mode experiments."""
 ```
 
 - [ ] Write a validation script that loads both datasets and prints shape, dtypes, and null counts
-- [ ] Test `inject_missing_values` and `inject_class_imbalance` and verify they produce expected distributions
+- [ ] Test both inject functions and verify they produce expected distributions
 
 ---
 
 **Day 4–5: Agent Harness (~5 hours)**
 
-Write the standardized wrapper functions that form the core of `ds_agents_utils.py`. The key design constraint: every wrapper must return the same dictionary structure so the analysis layer can treat all agents identically.
+Every wrapper returns the same dictionary structure so our analysis layer can treat all agents identically:
 
 ```python
 def run_autogluon(df: pd.DataFrame, target: str,
                   task_type: str = "binary",
                   time_limit: int = 60) -> dict:
-    """
-    Fits AutoGluon TabularPredictor on df. Returns metrics dict:
-    {
-        "agent": "autogluon",
-        "accuracy": float,     # or None for regression
-        "f1": float,           # or None for regression
-        "rmse": float,         # or None for classification
-        "runtime_seconds": float,
-        "feature_importance": pd.DataFrame,  # SHAP-based
-        "model_path": str,
-        "error": str or None   # populated if agent crashed
-    }
-    """
+    """Fits AutoGluon TabularPredictor. Returns:
+    {agent, accuracy, f1, rmse, runtime_seconds,
+     feature_importance, model_path, error}"""
 
 def run_pycaret(df: pd.DataFrame, target: str,
                 task_type: str = "classification") -> dict:
-    """
-    Runs PyCaret setup() + compare_models() + best model predict().
-    Returns same metrics dict structure as run_autogluon.
+    """Runs PyCaret setup() + compare_models() + predict().
     Extracts SHAP values via interpret_model().
-    """
+    Returns same dict structure as run_autogluon."""
 
 def run_autogen(df: pd.DataFrame, target: str,
                 task_type: str = "binary") -> dict:
-    """
-    Runs AutoGen AssistantAgent + UserProxyAgent pipeline.
-    Passes df summary + task description to agents.
-    Agents collaboratively write and execute Python ML code.
-    Captures: generated code, narrative explanation, any metrics extracted.
-    Returns same metrics dict structure plus:
-        "generated_code": str,
-        "narrative_explanation": str
-    """
+    """Runs AutoGen AssistantAgent + UserProxyAgent pipeline.
+    Returns same dict structure plus:
+    generated_code: str, narrative_explanation: str"""
 
 def save_results(results: dict, db_path: str = "results/results.sqlite",
                  experiment_tag: str = "normal") -> None:
-    """
-    Saves results dict to SQLite. Creates table if not exists.
-    experiment_tag: "normal" or "adversarial" to distinguish experiment types.
-    """
+    """Saves results dict to SQLite. Creates table if not exists.
+    experiment_tag: 'normal' or 'adversarial'."""
+
+def load_results(db_path: str = "results/results.sqlite") -> pd.DataFrame:
+    """Returns a DataFrame of all stored results for analysis."""
 ```
 
 - [ ] Implement `run_autogluon` — test on Heart Disease with `time_limit=60`
 - [ ] Implement `run_pycaret` — test on Heart Disease, verify `compare_models()` completes
 - [ ] Implement `run_autogen` — test with a minimal DataFrame, verify Ollama call succeeds
-- [ ] Implement `save_results` — verify SQLite table is created correctly and data can be queried back
-- [ ] Write `load_results(db_path)` → returns a DataFrame of all stored results for analysis
+- [ ] Implement `save_results` and `load_results` — verify round-trip works correctly
 
 ---
 
@@ -348,35 +461,32 @@ def save_results(results: dict, db_path: str = "results/results.sqlite",
 
 **Day 6: Run All Benchmark Experiments (~4 hours)**
 
-This is the payoff day — all the infrastructure you built in Week 1 now runs its full experiment suite.
-
-Experiment matrix:
+Our full experiment matrix:
 
 | Condition | Agents | Datasets | Runs |
 |---|---|---|---|
-| Normal (clean) | AutoGluon, PyCaret, AutoGen | Heart Disease, NYC Taxi | 3 × 2 = 6 |
+| Normal (clean data) | AutoGluon, PyCaret, AutoGen | Heart Disease, NYC Taxi | 3 × 2 = 6 |
 | Adversarial (20% missing + 9:1 imbalance) | AutoGluon, PyCaret, AutoGen | Heart Disease only | 3 × 1 = 3 |
-| Total | | | **9 baseline + 3 adversarial = 12 runs** |
+| **Total** | | | **12 controlled runs** |
 
-- [ ] Run 6 normal experiments; save all to `results.sqlite` with `experiment_tag="normal"`
-- [ ] Run 3 adversarial experiments on Heart Disease; save with `experiment_tag="adversarial"`
-- [ ] Run each experiment at least twice to check for consistency (non-determinism in AutoGen is expected)
-- [ ] Log all outputs — including errors, warnings, and crash traces — to a text file for documentation
-- [ ] Note for each agent: did it crash? did it warn? did it silently produce wrong results?
+- [ ] Run 6 normal experiments; save to `results.sqlite` with `experiment_tag="normal"`
+- [ ] Run 3 adversarial experiments; save with `experiment_tag="adversarial"`
+- [ ] Run each experiment at least twice to check consistency (AutoGen non-determinism is expected)
+- [ ] Log all outputs — including errors, warnings, and crash traces — to a text file
+- [ ] Document for each agent: did it crash, silently fail, or warn?
 
 ---
 
 **Day 7: Analysis Layer (~4 hours)**
 
-- [ ] Load all results from SQLite into a pandas DataFrame using `load_results()`
-- [ ] Compute normalized scores per dimension per agent per dataset
-- [ ] Compute weighted composite scores using baseline weights (35/15/20/20/10)
+- [ ] Load all results from SQLite using `load_results()`
+- [ ] Compute normalized composite scores under baseline weights (35/15/20/20/10)
 - [ ] Re-compute composite scores under all three alternative weight configurations (sensitivity analysis)
-- [ ] Extract and normalize SHAP feature importance values from AutoGluon and PyCaret results
-- [ ] For AutoGen: evaluate the narrative quality of its output text using the LLM-as-Judge pipeline (see Section 10 — Depth Dimension 2)
-- [ ] Compute pairwise Pearson correlations across all metrics (e.g., is faster always less accurate?)
-- [ ] Build a summary scorecard table: agents as rows, metrics + composite score as columns
-- [ ] Identify the "winner" under each weight configuration and note whether rankings change
+- [ ] Extract and normalize SHAP feature importance from AutoGluon and PyCaret
+- [ ] For AutoGen: run the LLM-as-Judge pipeline with human fallback (see Section 11 — Depth Dimension 2)
+- [ ] Compute pairwise Pearson correlations across all metrics
+- [ ] Build summary scorecard table: agents as rows, metrics + composite score as columns
+- [ ] Identify the winner under each weight configuration — note whether rankings change
 
 ---
 
@@ -384,34 +494,30 @@ Experiment matrix:
 
 **`ds_agents.API.ipynb` structure:**
 
-This notebook is a conceptual + technical walkthrough. A reader who has never heard of AutoGluon, PyCaret, or AutoGen should understand what each one is and how to use its core API after reading it.
-
-- Section 1: What is a Data Science Agent? (conceptual overview — what problem does this category of tool solve?)
+- Section 1: What is a Data Science Agent? (conceptual overview — what problem does this category solve?)
 - Section 2: AutoGluon API walkthrough (demonstrate `TabularPredictor.fit()` and `.predict()` on synthetic data)
 - Section 3: PyCaret API walkthrough (demonstrate `setup()`, `compare_models()`, `predict_model()` on synthetic data)
 - Section 4: AutoGen API walkthrough (demonstrate `AssistantAgent` + `UserProxyAgent` conversation on a simple task)
-- Section 5: Your wrapper layer explained (show `run_autogluon()`, `run_pycaret()`, `run_autogen()` with annotated code)
+- Section 5: Our wrapper layer explained (show all wrapper functions with annotated code)
 
 **`ds_agents.example.ipynb` structure:**
 
-This notebook is the full end-to-end benchmark. A reader should be able to reproduce your entire project by running this notebook in Docker.
-
-- Section 1: Load and explore both datasets (call `load_heart_disease()` and `load_taxi_sample()`)
-- Section 2: Run all experiments on clean data (call all three wrappers, save to SQLite)
-- Section 3: Run adversarial experiments (inject missing values + imbalance, re-run, save to SQLite)
-- Section 4: Load and analyze all results (call `load_results()`, compute scores, build scorecard)
-- Section 5: SHAP explainability analysis (compare feature importance across AutoGluon and PyCaret)
-- Section 6: LLM-as-Judge evaluation with human fallback (evaluate AutoGen narratives — see Section 10)
-- Section 7: Composite scorecard + sensitivity analysis (show rankings under all weight configurations)
-- Section 8: Conclusions (which agent won, why, when to use each one, limitations)
+- Section 1: Load and explore both datasets
+- Section 2: Run all experiments on clean data
+- Section 3: Run adversarial experiments
+- Section 4: Load and analyze all results
+- Section 5: SHAP explainability analysis
+- Section 6: LLM-as-Judge evaluation with human fallback
+- Section 7: Composite scorecard + sensitivity analysis
+- Section 8: Conclusions — which agent won, why, when to use each one, limitations
 
 **`app.py` Streamlit dashboard:**
 
-- Page 1 — Dataset Explorer: Filter results by dataset (Heart Disease / Taxi), agent (AutoGluon / PyCaret / AutoGen), and condition (normal / adversarial). Show raw metrics in a sortable table.
-- Page 2 — Metric Comparison: Side-by-side bar charts for each metric per agent. Radar chart showing all dimensions at once for a selected dataset.
-- Page 3 — SHAP Explainability Viewer: Show top-10 feature importance from AutoGluon and PyCaret side by side. Allow user to select dataset and agent.
-- Page 4 — Adversarial Results: Show how each agent's metrics changed between clean and adversarial conditions. Highlight crashes and silent failures.
-- Page 5 — Composite Scorecard + Recommendation Engine: Show the weighted scorecard table. Add a weight slider interface so users can drag weights and see the rankings update in real time. Display a "Based on your priorities, we recommend: [Agent X]" recommendation.
+- **Page 1 — Dataset Explorer:** Filter by dataset, agent, and condition. Show raw metrics in a sortable table.
+- **Page 2 — Metric Comparison:** Side-by-side bar charts per metric. Radar chart for all dimensions at once.
+- **Page 3 — SHAP Explainability Viewer:** Top-10 feature importance from AutoGluon and PyCaret side by side.
+- **Page 4 — Adversarial Results:** Show how each agent's metrics changed between clean and adversarial conditions. Highlight crashes and silent failures.
+- **Page 5 — Composite Scorecard + Recommendation Engine:** Weighted scorecard table. Live weight sliders — drag to change weights and watch rankings update in real time. "Based on your priorities, we recommend: [Agent X]" output.
 
 ---
 
@@ -421,26 +527,19 @@ This notebook is the full end-to-end benchmark. A reader should be able to repro
 
 **Day 9: Documentation (~5 hours)**
 
-**Write `README.md` covering all required sections:**
-
-- What are Data Science Agents, and why does it matter which one you use? (1–2 paragraphs)
-- What problem does this project solve? Who should use this guide?
-- Overview of alternatives: commercial tools (Devin, ChatGPT ADA) vs open source (AutoGluon, PyCaret, AutoGen) — pros and cons of each
-- Architecture overview with Mermaid diagram (embed the architecture diagram from Section 5)
-- Prerequisites and setup instructions:
-  - Install Docker Desktop
-  - Install Ollama and pull `llama3` or `mistral`
-  - Clone the repository and navigate to the project folder
-  - Run `docker_build.sh` to build the container
-  - Run `docker_jupyter.sh` to launch Jupyter
-  - Run `docker_streamlit.sh` (if you add this) to launch the Streamlit app
-- API description: document every function in `ds_agents_utils.py` with parameters, return types, and examples
-- References: AutoGluon paper, PyCaret documentation, AutoGen paper, Ollama documentation, relevant Kaggle/UCI dataset links
+**Write `README.md` covering:**
+- What are Data Science Agents, and why does it matter which one you use?
+- What problem our project solves and who should use this guide
+- Overview of alternatives: commercial tools vs. open source — pros and cons of each
+- Architecture overview with Mermaid diagram
+- Prerequisites and Docker setup instructions
+- API description: every function in `ds_agents_utils.py` with parameters, return types, and examples
+- References: AutoGluon paper, PyCaret docs, AutoGen paper, Ollama docs, dataset links
 
 **Add inline documentation to notebooks:**
 - Every code cell must have a markdown cell above it explaining what the code does and why
-- Every output (table, chart, metric) must have a markdown cell below it interpreting the result
-- Add Mermaid diagrams inline where they aid understanding (e.g., the experiment flow diagram before the benchmark loop)
+- Every output must have a markdown cell below it interpreting the result
+- Add Mermaid diagrams inline where they help understanding (e.g., the experiment flow diagram before the benchmark loop)
 
 ---
 
@@ -448,283 +547,231 @@ This notebook is the full end-to-end benchmark. A reader should be able to repro
 
 **Record 10–20 minute video following all 7 required steps:**
 
-1. **Introduction** — State your name, UID, tool name (Comparison of Data Science Agents), difficulty level chosen, and project title
-2. **File showcase** — Walk through the PR file tree. Show the folder structure. Point to each required file and explain its purpose. Explain the naming conventions.
-3. **Docker execution** — Run `docker_build.sh`. Show the build succeeding without errors. Then run `docker_bash.sh` and show the environment is correct (`python --version`, `pip list | grep autogluon`).
-4. **Jupyter launch** — Run `docker_jupyter.sh`. Show the Jupyter interface loading in browser.
-5. **Full project walkthrough** — Open `ds_agents.API.ipynb` and run every cell top to bottom while explaining verbally what each section does. Then open `ds_agents.example.ipynb` and do the same — show the experiments running, the results loading, the scorecard computing. Show the Streamlit dashboard running.
-6. **Results discussion** — Which agent won on Heart Disease? Which won on Taxi? Did rankings change between clean and adversarial conditions? Did any agent crash or fail silently? What would you recommend to a practitioner?
-7. **Documentation review** — Show the `README.md` and walk through its sections. Show the inline documentation in notebooks.
+1. **Introduction** — State name, UID, tool name (Comparison of Data Science Agents), difficulty level, and project title
+2. **File showcase** — Walk through the PR file tree. Show every required file and explain its purpose. Explain naming conventions.
+3. **Docker execution** — Run `docker_build.sh`. Show build succeeding. Run `docker_bash.sh` and show the environment (`python --version`, `pip list | grep autogluon`).
+4. **Jupyter launch** — Run `docker_jupyter.sh`. Show Jupyter loading in the browser.
+5. **Full project walkthrough** — Run every cell in both notebooks top to bottom while explaining verbally. Show the Streamlit dashboard running.
+6. **Results discussion** — Which agent won on Heart Disease? Which on Taxi? Did rankings change between clean and adversarial? Did any agent crash or silently fail? What would we recommend to a practitioner?
+7. **Documentation review** — Show `README.md` and walk through its sections. Show inline notebook documentation.
 
 **Final PR cleanup:**
 - [ ] Run `linters2/lint_branch.sh` if available in the repo
-- [ ] Check all commit messages are meaningful (not "fix", "update", "wip")
-- [ ] Verify both notebooks run end-to-end after kernel restart (Kernel → Restart & Run All)
+- [ ] Verify all commit messages are meaningful (not "fix", "update", "wip")
+- [ ] Verify both notebooks run end-to-end after Kernel → Restart & Run All
 - [ ] Confirm Docker build produces no warnings or errors
 - [ ] Add TAs and `@gpsaggese` as PR reviewers
-- [ ] Upload video to class Google Drive folder
+- [ ] Upload video to class Google Drive and add link to PR description
 
 ---
 
-## 8. Detailed Mermaid Diagrams
+## 10. Detailed Mermaid Diagrams
 
-### 8.1 Overall Project Flow
+### 10.1 Overall Project Flow
 
 ```mermaid
 flowchart LR
-    subgraph Planning["Phase 1 — Planning"]
+    subgraph Planning
         P1[Select Agents] --> P2[Select Datasets]
         P2 --> P3[Design Rubric]
         P3 --> P4[GitHub Setup]
         P4 --> P5[Background Reading]
     end
-    subgraph Execution["Phase 2 — Execution"]
-        E1[Docker + Ollama Setup] --> E2[Data Pipeline]
+    subgraph Execution
+        E1[Docker and Ollama Setup] --> E2[Data Pipeline]
         E2 --> E3[Agent Wrappers]
         E3 --> E4[Run 12 Experiments]
-        E4 --> E5[Analysis + Scoring]
-        E5 --> E6[Notebooks + Streamlit App]
+        E4 --> E5[Analysis and Scoring]
+        E5 --> E6[Notebooks and Streamlit]
     end
-    subgraph Documentation["Phase 3 — Documentation"]
-        D1[README + Inline Docs] --> D2[Video Recording]
-        D2 --> D3[Final PR + Submit]
+    subgraph Documentation
+        D1[README and Inline Docs] --> D2[Video Recording]
+        D2 --> D3[Final PR and Submit]
     end
     Planning --> Execution --> Documentation
 ```
 
-### 8.2 Experiment Run Flow (per agent per dataset)
+### 10.2 Experiment Run Flow
 
 ```mermaid
-sequenceDiagram
-    participant N as Notebook
-    participant U as ds_agents_utils.py
-    participant A as Agent (AutoGluon / PyCaret / AutoGen)
-    participant DB as results.sqlite
-
-    N->>U: run_agent(df, target, task_type)
-    U->>U: start timer
-    U->>A: fit(df_train, target)
-    A-->>U: trained model
-    U->>A: predict(df_test)
-    A-->>U: predictions
-    U->>U: stop timer, compute metrics (accuracy/F1/RMSE)
-    U->>U: extract SHAP feature importance
-    U->>DB: save_results(metrics, shap, runtime, tag)
-    DB-->>N: confirm saved
-    N->>N: log experiment complete
+flowchart LR
+    N[Notebook] --> U[ds_agents_utils.py]
+    U --> |fit train data| AG[Agent]
+    AG --> |trained model| U
+    U --> |predict test data| AG
+    AG --> |predictions| U
+    U --> |metrics and SHAP| DB[(results.sqlite)]
+    DB --> |confirm saved| N
 ```
 
-### 8.3 LLM-as-Judge Pipeline with Human Evaluation Fallback
+### 10.3 LLM-as-Judge with Human Evaluation Fallback
 
 ```mermaid
 flowchart TD
-    A[AutoGen Narrative Explanation\ngenerated during experiment run] --> B[LLM Judge\nOllama llama3 or mistral]
-    B --> C[Score on 3 dimensions:\nClarity 1-10\nCorrectness 1-10\nCompleteness 1-10]
-    C --> D{Confidence Score\nAverage of 3 dimensions}
-    D --> |Score >= threshold\ne.g. >= 7.0| E[Auto-Accept\nAI Evaluation Result]
-    D --> |Score < threshold\ne.g. < 7.0| F[Flag for Human Review\nLog to flagged_reviews.csv]
-    F --> G[Human Evaluator\nreviews narrative manually\nscores same 3 dimensions]
-    G --> H[Human Score recorded\nwith reviewer notes]
-    E --> I[Merge Results\nAI evaluations + Human overrides]
+    A[AutoGen Narrative Output] --> B[LLM Judge via Ollama]
+    B --> C[Score on Clarity, Correctness, Completeness]
+    C --> D{Confidence Score}
+    D --> |Score above threshold| E[Auto-Accept AI Evaluation]
+    D --> |Score below threshold| F[Flag for Human Review]
+    F --> G[Human Evaluator]
+    G --> H[Human Score and Notes Recorded]
+    E --> I[Merge Results]
     H --> I
-    I --> J[Final Evaluation Score\nstored in results.sqlite\nwith source field: AI or Human]
-    J --> K[Dashboard display\nshows percentage of cases\nrequiring human review\nas quality metric]
+    I --> J[Final Score in results.sqlite]
+    J --> K[Dashboard shows pct cases needing human review]
 ```
 
-### 8.4 Streamlit Dashboard Architecture
+### 10.4 Streamlit Dashboard Architecture
 
 ```mermaid
 flowchart TD
-    DB[(results.sqlite)] --> APP[app.py — Streamlit Application]
-    APP --> P1[Page 1\nDataset Explorer\nsortable metrics table\nfilter by agent / dataset / condition]
-    APP --> P2[Page 2\nMetric Comparison\nbar charts + radar chart\nper agent per dataset]
-    APP --> P3[Page 3\nSHAP Explainability Viewer\ntop-10 features\nAutoGluon vs PyCaret side by side]
-    APP --> P4[Page 4\nAdversarial Results\nclean vs adversarial delta\ncrash / failure documentation]
-    APP --> P5[Page 5\nComposite Scorecard\nweight sliders\nlive ranking update\nrecommendation engine]
+    DB[(results.sqlite)] --> APP[app.py Streamlit]
+    APP --> P1[Page 1 Dataset Explorer]
+    APP --> P2[Page 2 Metric Comparison]
+    APP --> P3[Page 3 SHAP Viewer]
+    APP --> P4[Page 4 Adversarial Results]
+    APP --> P5[Page 5 Scorecard and Recommendation]
 ```
 
-### 8.5 Docker Container Design
+### 10.5 Docker Container Design
 
 ```mermaid
 flowchart TD
-    H[Host Machine\nOllama serving on port 11434\nllama3 or mistral model loaded] -->|host.docker.internal bridge| DC
-
-    subgraph DC[Docker Container]
-        JN[Jupyter Server\nport 8888]
-        ST[Streamlit App\nport 8501]
-        PY[Python 3.11 Environment\nautogluon + pycaret\n+ pyautogen + shap\n+ streamlit + sqlite3\n+ pandas + plotly]
-    end
-
-    DC -->|mounts read-write| DATA[/data/ volume\nheart_disease.csv\ntaxi_sample.parquet]
-    DC -->|mounts read-write| RES[/results/ volume\nresults.sqlite\nflagged_reviews.csv]
+    HOST[Host Machine running Ollama on port 11434] --> |bridge via host.docker.internal| DC[Docker Container]
+    DC --> JN[Jupyter on port 8888]
+    DC --> ST[Streamlit on port 8501]
+    DC --> PY[Python env with autogluon pycaret pyautogen shap streamlit]
+    DC --> DATA[data volume heart disease and taxi files]
+    DC --> RES[results volume results.sqlite]
 ```
 
-### 8.6 40-Hour Time Budget (Gantt Chart)
+### 10.6 40-Hour Time Budget
 
 ```mermaid
 gantt
-    title Project Timeline — 40 Hours Total
+    title Project Timeline - 40 Hours Total
     dateFormat  X
     axisFormat  %s hrs
 
-    section Phase 1 — Planning
+    section Phase 1 Planning
     Agent and Dataset Selection       :done,    p1, 0, 2
     GitHub Issue and Branch Setup     :done,    p2, 2, 4
     Background Reading and Research   :active,  p3, 4, 7
 
-    section Phase 2 — Execution
+    section Phase 2 Execution
     Docker and Ollama Environment     :         e1, 7, 13
     Data Pipeline and Utils           :         e2, 13, 17
-    Agent Wrappers Implementation     :         e3, 17, 22
+    Agent Wrappers                    :         e3, 17, 22
     Run 12 Experiments                :         e4, 22, 26
     Analysis and Scoring Layer        :         e5, 26, 30
     Notebooks and Streamlit Dashboard :         e6, 30, 37
 
-    section Phase 3 — Documentation
+    section Phase 3 Documentation
     README and Inline Notebook Docs   :         d1, 37, 41
     Video Recording and Final PR      :         d2, 41, 45
 ```
 
 ---
 
-## 9. Required Background Reading Before Coding
+## 11. Four Depth Dimensions — What Makes Our Project Outstanding
 
-Do this reading during the planning phase — it will save hours of confusion later. Estimated: 3–4 hours total.
-
-### Conceptual Background
-
-- [ ] **What is AutoML?** Read the AutoGluon tabular quickstart tutorial:
-  `https://auto.gluon.ai/stable/tutorials/tabular/tabular-quick-start.html`
-  Focus on: `TabularPredictor.fit()`, `predict()`, `evaluate()`, `feature_importance()`
-
-- [ ] **What is PyCaret?** Read the compare_models() quickstart:
-  `https://pycaret.gitbook.io/docs/get-started/quickstart`
-  Focus on: `setup()`, `compare_models()`, `predict_model()`, `interpret_model()`
-
-- [ ] **What is AutoGen?** Read the multi-agent conversation tutorial:
-  `https://github.com/microsoft/autogen`
-  Focus on: `AssistantAgent` + `UserProxyAgent` pattern, the `initiate_chat()` method, `config_list` configuration for non-OpenAI models
-
-- [ ] **What is Ollama?** Read the quickstart and API documentation:
-  `https://github.com/ollama/ollama`
-  Understand: how to run a local LLM, how to expose it as an OpenAI-compatible API endpoint that AutoGen can call, the difference between `ollama run` (interactive) and `ollama serve` (API server mode)
-
-### Technical Setup Research
-
-- [ ] How to install AutoGluon inside Docker with CPU-only PyTorch (read the official Docker install guide — it has specific steps for avoiding CUDA conflicts)
-- [ ] How to configure AutoGen to use a local Ollama model instead of OpenAI — specifically, look for the `OllamaWrapper` pattern or using `config_list` with `base_url` pointing to `http://host.docker.internal:11434/v1`
-- [ ] How to extract SHAP values from AutoGluon's fitted predictor: use `predictor.feature_importance(data)` — this returns SHAP-based importance scores, not permutation importance
-- [ ] How to extract SHAP values from PyCaret: use `interpret_model(best_model)` — this calls the SHAP library internally and produces a summary plot
-- [ ] How to connect Streamlit to a SQLite database: use `sqlite3.connect()` or `sqlalchemy` + `pd.read_sql()` inside a Streamlit app
-
-### Grading-Relevant Research
-
-- [ ] Look at the `tutorials/autogen` example in the `umd_classes` repository — this is the closest reference for the expected file structure, notebook style, and documentation depth
-- [ ] Watch 2–3 previous student project videos from the class Google Drive folder to calibrate the expected depth, presentation style, and length
-
----
-
-## 10. Definition of "Going Deep" — Four Depth Dimensions
-
-Since the goal is the deepest technical learning possible, here is exactly what separates an outstanding project from a good one for this specific topic. These four dimensions are what make your project memorable, quotable in a portfolio, and genuinely publishable.
+These four dimensions are what separate an outstanding project from a good one. They are what make this memorable as a portfolio piece.
 
 ---
 
 ### Depth Dimension 1 — Adversarial Experiments
 
-Don't just run agents on clean data. Deliberately inject 20% missing values and a 9:1 class imbalance into the Heart Disease dataset, then document exactly how each agent handles it.
+We do not just run agents on clean data. We deliberately inject 20% missing values and a 9:1 class imbalance into the Heart Disease dataset, then document exactly how each agent handles it.
 
-**What to measure and document:**
+**What we measure and document:**
 - Does the agent crash with an exception? (Record the full exception message)
-- Does it silently produce a wrong result without any warning? (Most dangerous)
+- Does it silently produce a wrong result without any warning? (Most dangerous — this is the outcome we want to flag)
 - Does it issue a warning and proceed? (Acceptable behavior)
-- Does it automatically impute missing values or handle imbalance? (Ideal behavior)
+- Does it automatically handle the degraded data? (Ideal behavior)
 
-**Why this matters:** This is genuinely novel analysis that most student projects skip entirely. Real data is always messy. An agent that looks great on clean UCI data but silently fails on real-world data is worse than useless — it's dangerous. Documenting this failure mode analysis is what separates a tutorial project from a research contribution.
+**Why this matters:** This is genuinely novel analysis that most student projects skip entirely. Real data is always messy. An agent that looks great on clean UCI data but silently fails on real-world data is worse than useless — it is dangerous. Documenting this failure mode analysis is what separates a tutorial from a research contribution.
 
-**Implementation:** Use `inject_missing_values(df, pct=0.20)` and `inject_class_imbalance(df, target_col='target', ratio=9.0)` from `ds_agents_utils.py`, then run the same three agent wrappers on the degraded data.
+**Implementation:** Use `inject_missing_values(df, pct=0.20)` and `inject_class_imbalance(df, target_col='target', ratio=9.0)` from `ds_agents_utils.py`, then run the same three wrappers on the degraded data.
 
 ---
 
 ### Depth Dimension 2 — LLM-as-Judge with Human Evaluation Fallback
 
-Use a local Ollama model to automatically evaluate the quality of AutoGen's narrative explanations. This means you are using one AI to evaluate another — a meta-level analysis that shows genuine depth of understanding.
+We use a local Ollama model to automatically evaluate the quality of AutoGen's narrative explanations — using one AI to evaluate another. This is meta-level analysis that shows genuine depth.
 
-**The base LLM-as-Judge system:**
+**The LLM-as-Judge system:**
 
-For each AutoGen narrative explanation generated during the benchmark runs, send it to a second Ollama call with the following evaluation prompt:
+For each AutoGen narrative, we send it to a second Ollama call with this prompt:
 
 ```
-You are an expert data science teacher. Evaluate the following explanation 
-of a machine learning result on a scale of 1–10 for each of these dimensions:
+You are an expert data science teacher. Evaluate the following explanation
+of a machine learning result on a scale of 1-10 for each dimension:
 
 1. Clarity: Is the explanation clear and understandable to a data scientist?
 2. Correctness: Is the technical content accurate and not misleading?
 3. Completeness: Does it cover the key aspects of the result?
 
 Return a JSON object with keys: clarity, correctness, completeness, confidence.
-The confidence field (1–10) represents how certain you are in your evaluation.
+The confidence field (1-10) represents how certain you are in your evaluation.
 
 Explanation to evaluate:
 {narrative}
 ```
 
-**The human evaluation fallback — the new addition:**
+**The human evaluation fallback — our new addition:**
 
-Not every LLM evaluation is equally trustworthy. When the judge's confidence score falls below a defined threshold (e.g., `confidence < 7.0`), the case is flagged for manual human review rather than being auto-accepted.
+Not every LLM evaluation is equally trustworthy. When the judge's confidence score falls below a defined threshold (e.g., `confidence < 7.0`), we flag the case for manual human review rather than auto-accepting it.
 
-This creates a **hybrid evaluation system**:
-- **High-confidence cases (confidence ≥ 7.0):** AI evaluation is accepted automatically and stored with `source = "AI"`
-- **Low-confidence cases (confidence < 7.0):** Flagged and written to `flagged_reviews.csv` with columns: `[narrative_id, narrative_text, ai_scores, ai_confidence, reason_for_flagging]`
-- **Human review:** The human evaluator scores each flagged narrative on the same three dimensions and records their scores and notes
-- **Merge:** Final scores combine AI auto-accepted results and human overrides, stored together in `results.sqlite` with a `source` column (`"AI"` or `"Human"`)
+This creates a **hybrid evaluation system:**
+- **High-confidence cases (confidence >= 7.0):** AI evaluation is accepted automatically, stored with `source = "AI"`
+- **Low-confidence cases (confidence < 7.0):** Written to `flagged_reviews.csv` with columns: `narrative_id`, `narrative_text`, `ai_scores`, `ai_confidence`, `reason_for_flagging`
+- **Human review:** We score each flagged narrative on the same three dimensions and record our scores and notes
+- **Merge:** Final scores combine AI auto-accepted results and human overrides in `results.sqlite`, with a `source` column (`"AI"` or `"Human"`)
 
-**What to analyze and report:**
-- What percentage of AutoGen narratives required human review? (This is itself a quality signal about AutoGen's output consistency)
-- Did human and AI scores agree when humans reviewed flagged cases? (Inter-rater reliability)
-- Were there systematic patterns in which types of narratives triggered the fallback? (e.g., longer explanations, explanations about regression vs. classification)
-- How did the choice of threshold (e.g., 7.0 vs. 6.0 vs. 8.0) affect the percentage flagged?
+**What we analyze and report:**
+- What percentage of AutoGen narratives required human review? (A quality signal about output consistency)
+- Did human and AI scores agree on flagged cases? (Inter-rater reliability)
+- Were there patterns in which narratives triggered the fallback (e.g., longer explanations, regression vs. classification)?
+- How does the choice of threshold (7.0 vs. 6.0 vs. 8.0) affect the percentage flagged?
 
-**Why the human fallback makes this stronger:** It turns the evaluation from a fully automated black box into an auditable, human-in-the-loop quality control system. This is how production AI evaluation pipelines actually work. Documenting the threshold decision and its effects is publishable-quality work.
+This turns the evaluation from a black box into an auditable, human-in-the-loop quality control system — exactly how production AI evaluation pipelines work.
 
 ---
 
 ### Depth Dimension 3 — Composite Scorecard with Sensitivity Analysis
 
-Don't just present one weighted score and declare a winner. Show what happens when you change the weights.
+We do not just present one weighted score and declare a winner. We show what happens when we change the weights.
 
-**The key question to answer:** If a practitioner cares more about explainability than speed — or more about error handling than raw accuracy — does the agent ranking change? If it does, that is a highly informative finding: the "best" agent depends on your use case. If it doesn't, that is also highly informative: the winner is robust across evaluation philosophies.
+**The key question:** If a practitioner cares more about explainability than speed, does the agent ranking change? If it does, that is a highly informative finding — the best agent depends on your use case. If it does not, that is also informative — the winner is robust.
 
-**Implementation:** Re-compute composite scores under three alternative weight configurations (defined in Section 4) and present a heatmap or side-by-side table showing how each agent's composite score changes across configurations.
+We compute scores under four weight configurations (our baseline plus the three alternatives from Section 6) and present a heatmap or side-by-side table showing how each agent's composite score changes across them.
 
-This kind of sensitivity analysis is what separates engineering thinking (run the benchmark, report the numbers) from data science thinking (understand what the numbers mean and when they change).
+This is what separates data science thinking from engineering thinking: understanding what the numbers mean and when they change.
 
 ---
 
 ### Depth Dimension 4 — Streamlit Dashboard
 
-A working, interactive application that a non-technical person can use to explore your results is a concrete artifact that goes well beyond the notebook requirement. The dashboard elevates this project from "tutorial" into "Build X using Y" territory — which is a separate, higher-prestige category within the class.
+A working interactive app that a non-technical person can use to explore our results. The key differentiating feature is the live weight slider on the scorecard page — when someone drags the explainability weight up and the runtime weight down, the agent rankings update in real time. This makes the sensitivity analysis tangible and memorable.
 
-The five-page design (Dataset Explorer, Metric Comparison, SHAP Viewer, Adversarial Results, Scorecard + Recommendation Engine) is specified in full in Section 7, Day 8. The key differentiating feature is **Page 5's live weight slider** — when a user drags the explainability weight up and the runtime weight down, the agent rankings visibly update in real time. This single interaction makes the sensitivity analysis tangible and memorable.
-
-**Implementation:** Built with Streamlit (`pip install streamlit`). No React, no JavaScript, no frontend skills required. Streamlit reads from `results.sqlite` using `pd.read_sql()` and renders interactive charts using Plotly. The whole app is a single Python file (`app.py`) that runs inside the same Docker container as the notebooks.
+Built entirely in Python with Streamlit — no React, no JavaScript, no frontend skills required. Single file (`app.py`) running inside the same Docker container as our notebooks.
 
 ---
 
-## 11. Required Tools and Setup Checklist
+## 12. Required Tools and Setup Checklist
 
 ### Local Machine Setup
 
 - [ ] Docker Desktop installed and running — verify with `docker ps`
 - [ ] Ollama installed from `https://ollama.com` — verify with `ollama --version`
-- [ ] Ollama model pulled: `ollama pull llama3` (recommended) or `ollama pull mistral`
-- [ ] Verify Ollama API is accessible: `curl http://localhost:11434/api/tags`
+- [ ] Model pulled: `ollama pull llama3` or `ollama pull mistral`
+- [ ] Verify Ollama API: `curl http://localhost:11434/api/tags`
 - [ ] Git configured with SSH key for GitHub
 - [ ] `umd_classes` repo cloned: `git clone git@github.com:gpsaggese/umd_classes.git`
-- [ ] Project branch created with correct naming convention: `TutorTask{N}_Spring2026_Comparison_of_Data_Science_Agents`
-- [ ] GitHub issue created, assigned to yourself, and issue number noted
+- [ ] Project branch created with correct naming convention
+- [ ] GitHub issue created, assigned, issue number noted
 
-### Python Packages (`requirements.txt` — pin all versions for reproducibility)
+### `requirements.txt` — Pin All Versions
 
 ```
 # Core agents
@@ -755,91 +802,50 @@ sqlalchemy==2.0.0
 
 # Utilities
 requests==2.31.0
-jupytext  # optional: convert notebooks to .py for linting
+jupytext
 ```
 
-> **Critical note:** Pin exact versions to ensure reproducibility. Anyone running `docker_build.sh` on any machine should get the exact same environment. Test these versions together inside Docker before committing — do not assume they are compatible without testing.
+> Install order matters: AutoGluon first, then PyCaret. Use CPU-only PyTorch:
+> `pip install torch --index-url https://download.pytorch.org/whl/cpu`
 
 ---
 
-## 12. Risk Register
+## 13. Risk Register
 
-| Risk | Likelihood | Impact | Mitigation Strategy |
+| Risk | Likelihood | Impact | Our Mitigation |
 |---|---|---|---|
-| AutoGluon Docker install fails due to PyTorch / CUDA dependency conflicts | Medium | High | Use CPU-only PyTorch build: `pip install torch --index-url https://download.pytorch.org/whl/cpu` before installing AutoGluon |
-| AutoGen ↔ Ollama networking broken inside Docker container | Medium | High | Test this specifically on Day 1. Use `host.docker.internal` as the hostname. On Linux hosts, use `--add-host=host.docker.internal:host-gateway` in docker run |
-| Ollama model too slow or memory-constrained for 50k-row Taxi dataset | Medium | Medium | Use Heart Disease (small) as AutoGen's primary dataset; only run AutoGluon and PyCaret on Taxi. Document this as a finding about AutoGen's scalability limitations. |
-| PyCaret version conflicts with AutoGluon dependency tree | Low–Medium | Medium | Install AutoGluon first, then PyCaret. If conflicts arise, use a separate pip venv inside Docker for PyCaret. |
-| NYC Taxi Parquet file download is slow or the URL changes | Low | Low | Download once locally, add to `data/` folder, mount as a Docker volume. Do not re-download inside the container on each build. |
-| Notebook does not run end-to-end after kernel restart | Medium | High | Test Kernel → Restart & Run All before every PR commit. This is a mandatory pre-commit check. |
-| AutoGen produces non-deterministic outputs that break downstream evaluation | Medium | Low–Medium | Run each AutoGen experiment at least twice; average the results. Document variance as a finding. |
-| LLM judge produces inconsistent confidence scores | Low | Low | Document the threshold choice and show sensitivity to threshold in the analysis. This is an interesting finding, not a failure. |
-
----
-
-## 13. GitHub Workflow Summary
-
-```
-Step 1:  Create GitHub issue
-         Title: Spring2026_Comparison_of_Data_Science_Agents
-         Body: Include project description, agent list, dataset list, rubric
-
-Step 2:  Note the issue number — you will use it in the branch name
-         Example: issue #712
-
-Step 3:  Create your working branch from main
-         git checkout -b TutorTask712_Spring2026_Comparison_of_Data_Science_Agents
-
-Step 4:  Create your project folder
-         DATA605/Spring2026/projects/TutorTask712_Spring2026_Comparison_of_Data_Science_Agents/
-
-Step 5:  Commit frequently with meaningful messages. Examples:
-         "Add Dockerfile and requirements.txt for all three agents"
-         "Add data loading utilities for Heart Disease and NYC Taxi"
-         "Add AutoGluon wrapper and first benchmark run on Heart Disease"
-         "Add PyCaret wrapper and compare_models benchmark"
-         "Add AutoGen wrapper with Ollama integration"
-         "Add adversarial injection functions and run failure mode experiments"
-         "Add LLM-as-Judge evaluation pipeline with human fallback"
-         "Add Streamlit dashboard with 5 pages"
-         "Complete API.ipynb and example.ipynb with full inline documentation"
-         "Add README.md and final polish"
-
-Step 6:  Submit first PR checkpoint when notebooks are running
-         Add TAs and @gpsaggese as reviewers
-         Request review on: file structure, Docker setup, notebook quality
-
-Step 7:  Incorporate all feedback from reviewers
-
-Step 8:  Submit final PR with the same reviewers
-
-Step 9:  Upload video to class Google Drive folder
-         Share link in PR description
-```
+| AutoGluon Docker install fails due to PyTorch/CUDA conflicts | Medium | High | Use CPU-only PyTorch before installing AutoGluon |
+| AutoGen to Ollama networking broken inside Docker | Medium | High | Test specifically on Day 1; use `host.docker.internal`; on Linux use `--add-host=host.docker.internal:host-gateway` |
+| Ollama model too slow for 50k-row Taxi dataset | Medium | Medium | Use Heart Disease as AutoGen's primary dataset; run only AutoGluon + PyCaret on Taxi; document as a finding about scalability |
+| PyCaret version conflicts with AutoGluon | Low–Medium | Medium | Install AutoGluon first, then PyCaret; use a separate pip venv inside Docker if needed |
+| NYC Taxi Parquet download is slow or URL changes | Low | Low | Download once locally, add to `data/` folder, mount as Docker volume — never re-download inside container |
+| Notebook does not run end-to-end after kernel restart | Medium | High | Test Kernel → Restart and Run All before every PR commit — mandatory pre-commit check |
+| AutoGen produces non-deterministic outputs | Medium | Low | Run each AutoGen experiment at least twice; average the results; document variance as a finding |
+| LLM judge produces inconsistent confidence scores | Low | Low | Document threshold choice and show sensitivity to threshold — this is an interesting finding, not a failure |
 
 ---
 
 ## 14. Success Criteria Checklist
 
-Before calling the project done, verify every item on this list. This is exactly what the graders will check.
+Before we call this project done, every item below must be checked.
 
 ### Required (40 points at stake)
 
-- [ ] All required files present in the correct folder structure
-- [ ] `docker_build.sh` builds the image without any errors
+- [ ] All required files in the correct folder structure
+- [ ] `docker_build.sh` builds without errors
 - [ ] `docker_jupyter.sh` launches Jupyter and both notebooks are accessible
-- [ ] `ds_agents.API.ipynb` runs completely end-to-end after Kernel → Restart & Run All
-- [ ] `ds_agents.example.ipynb` runs completely end-to-end after Kernel → Restart & Run All
-- [ ] All complex logic lives in `ds_agents_utils.py` — no function definitions or ML code inline in notebooks
-- [ ] `README.md` covers all required sections (see Section 13 above)
-- [ ] PR has a meaningful commit history, all commits linked to the issue number
-- [ ] Video is between 10 and 20 minutes, uploaded to class Google Drive, link in PR description
-- [ ] Video follows all 7 required steps in order (see Day 10 in Section 7)
+- [ ] `ds_agents.API.ipynb` runs end-to-end after Kernel → Restart and Run All
+- [ ] `ds_agents.example.ipynb` runs end-to-end after Kernel → Restart and Run All
+- [ ] All complex logic in `ds_agents_utils.py` — not inline in notebooks
+- [ ] `README.md` covers all required sections
+- [ ] PR has meaningful commit history linked to the issue number
+- [ ] Video is 10–20 minutes, uploaded to class Google Drive, link in PR description
+- [ ] Video follows all 7 required steps in order
 
 ### Depth Indicators (what separates an A from a B)
 
-- [ ] At least 3 agents benchmarked (AutoGluon + PyCaret + AutoGen)
-- [ ] At least 2 datasets used (Heart Disease + NYC Taxi)
+- [ ] At least 3 agents benchmarked
+- [ ] At least 2 datasets used
 - [ ] Adversarial / failure mode experiments conducted and documented
 - [ ] SHAP explainability analysis included for AutoGluon and PyCaret
 - [ ] Composite scorecard with explicit weights documented and justified
@@ -847,24 +853,22 @@ Before calling the project done, verify every item on this list. This is exactly
 - [ ] LLM-as-Judge evaluation pipeline implemented for AutoGen narratives
 - [ ] Human evaluation fallback with defined confidence threshold implemented and analyzed
 - [ ] Sensitivity analysis on rubric weights showing how rankings change
-- [ ] Percentage of cases requiring human review reported and interpreted as a quality signal
+- [ ] Percentage of cases requiring human review reported as a quality signal
 
 ---
 
-## 15. Immediate Next Steps (Action Items)
-
-If you are reading this right now, here is exactly what to do next, in order:
+## 15. Immediate Next Steps — Do These Now
 
 1. **Create the GitHub issue** — takes 5 minutes, unblocks everything else
 2. **Create the branch** with the correct naming convention
-3. **Copy this planning document** into your project folder as `PLAN.md`
-4. **Install Ollama** and pull `llama3`: `ollama pull llama3`
-5. **Verify Ollama works**: `curl http://localhost:11434/api/tags` — you should see a JSON response with the model listed
-6. **Start the background reading** — AutoGluon quickstart first, then PyCaret, then AutoGen
-7. **Write the Dockerfile** on Day 1 and test the AutoGen ↔ Ollama connection before anything else
+3. **Copy this file** into our project folder as `PLAN.md`
+4. **Install Ollama** and pull the model: `ollama pull llama3`
+5. **Verify Ollama works:** `curl http://localhost:11434/api/tags` — you should see a JSON response listing the model
+6. **Start background reading** — AutoGluon quickstart first, then PyCaret, then AutoGen
+7. **Write the Dockerfile on Day 1** and test the AutoGen to Ollama connection before any data or analysis work
 
-The single highest-risk item in this entire project is the AutoGen ↔ Ollama Docker networking. Everything else is straightforward Python. Solve that on Day 1 and the rest of the project is execution, not problem-solving.
+The single highest-risk item in the entire project is the AutoGen to Ollama Docker networking. Everything else is execution, not problem-solving. Solve the networking on Day 1.
 
 ---
 
-*Document last updated: March 2026. Maintained as part of DATA605 Spring 2026 project planning.*
+*Document last updated: March 2026. Maintained as part of DATA605 Spring 2026 — Comparison of Data Science Agents.*
