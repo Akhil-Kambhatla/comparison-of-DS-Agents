@@ -159,9 +159,7 @@ Before writing any code, every team member should read:
 - How to extract SHAP values from PyCaret: `interpret_model(best_model)` — calls the SHAP library internally
 - How to connect Streamlit to SQLite: use `sqlite3.connect()` or `sqlalchemy` + `pd.read_sql()` inside a Streamlit app
 
-**Grading-relevant reads:**
-- Look at the `tutorials/autogen` example in the `umd_classes` repository — this is the closest reference for expected notebook structure and documentation depth
-- Watch 2–3 previous student project videos from the class Google Drive folder to calibrate the expected depth, presentation style, and length
+
 
 ---
 
